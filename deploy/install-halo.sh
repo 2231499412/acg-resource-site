@@ -6,6 +6,7 @@ REPO_ROOT="${REPO_ROOT:-/opt/acg-resource-site/repo}"
 HALO_ROOT="${HALO_ROOT:-/opt/halo}"
 DATA_ROOT="${DATA_ROOT:-/opt/halo-data}"
 HALO_VERSION="${HALO_VERSION:-2.27.1}"
+JAVA_BIN="${JAVA_BIN:-/usr/lib/jvm/temurin-21-jre-amd64/bin/java}"
 HALO_DB_HOST="${HALO_DB_HOST:-127.0.0.1}"
 HALO_DB_PORT="${HALO_DB_PORT:-3306}"
 HALO_DB_NAME="${HALO_DB_NAME:-halo_resource}"
@@ -15,6 +16,19 @@ HALO_DB_PASSWORD="${HALO_DB_PASSWORD:?Set HALO_DB_PASSWORD before running this s
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "Run as root or with sudo."
+  exit 1
+fi
+
+if [ ! -x "$JAVA_BIN" ]; then
+  JAVA_BIN="$(command -v java || true)"
+fi
+if [ -z "$JAVA_BIN" ] || [ ! -x "$JAVA_BIN" ]; then
+  echo "Java 21 not found. Set JAVA_BIN to the Java 21 executable."
+  exit 1
+fi
+if ! "$JAVA_BIN" -version 2>&1 | grep -q 'version "21\.'; then
+  echo "Halo 2.27.1 requires Java 21. Current executable: $JAVA_BIN"
+  "$JAVA_BIN" -version
   exit 1
 fi
 
@@ -74,7 +88,7 @@ After=network.target mysql.service
 User=halo
 WorkingDirectory=$HALO_ROOT
 EnvironmentFile=/etc/halo/halo.env
-ExecStart=/usr/bin/java -Dfile.encoding=UTF-8 -server -Xms256m -Xmx512m -jar $HALO_ROOT/halo-${HALO_VERSION}.jar --spring.config.additional-location=optional:file:$HALO_ROOT/
+ExecStart=$JAVA_BIN -Dfile.encoding=UTF-8 -server -Xms256m -Xmx512m -jar $HALO_ROOT/halo-${HALO_VERSION}.jar --spring.config.additional-location=optional:file:$HALO_ROOT/
 Restart=on-failure
 RestartSec=5
 
