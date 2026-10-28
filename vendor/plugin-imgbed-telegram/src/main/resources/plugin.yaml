@@ -1,0 +1,14 @@
+﻿apiVersion: plugin.halo.run/v1alpha1
+kind: Plugin
+metadata:
+  name: PluginImgBedTelegram
+spec:
+  enabled: true
+  requires: ">=2.24.0"
+  author:
+    name: acg-resource-site
+  displayName: ImgBed Telegram 图床
+  description: 将 Halo 附件上传到 ImgBed 的 Telegram 渠道
+  license:
+    - name: MIT
+  homepage: https://904764f8.cloudflare-imgbed-6ip.pages.dev

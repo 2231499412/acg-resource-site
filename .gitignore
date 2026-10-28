@@ -1,0 +1,43 @@
+﻿# Runtime and secrets
+halo-data/
+halo/halo-*.jar
+halo/application.yaml
+halo/application-mysql.yaml
+*.log
+
+# Build and dependency caches
+**/.gradle/
+**/build/
+**/node_modules/
+**/dist/
+
+# Generated/imported files
+imports/
+preview/
+tmp-*/
+BOOT-INF/
+
+# Local IDE and OS files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+vendor/plugin-s3-2/
+showcase/.gradle/
+showcase/build/
+theme/.gradle/
+theme/node_modules/
+
+theme/
+showcase/
+imgbed-*.js
+imgbed-*.html
+app.*.js
+chunk-vendors*.js
+
+halo/parts/
+scripts/__pycache__/
+vendor/*.jar
+

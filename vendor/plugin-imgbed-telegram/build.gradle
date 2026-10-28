@@ -1,0 +1,25 @@
+plugins {
+    id 'java'
+    id 'io.freefair.lombok' version '9.2.0'
+    id 'run.halo.plugin.devtools' version '0.8.0'
+}
+
+group = 'run.halo.imgbed'
+version = '1.0.0'
+repositories { mavenCentral() }
+
+dependencies {
+    implementation platform('run.halo.tools.platform:plugin:2.24.0')
+    compileOnly 'run.halo.app:api'
+    compileOnly 'org.springframework.boot:spring-boot-starter-webflux'
+    compileOnly 'com.fasterxml.jackson.core:jackson-databind'
+    testImplementation 'run.halo.app:api'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+configurations.runtimeClasspath { exclude group: 'org.reactivestreams', module: 'reactive-streams' }
+java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8'; options.release = 21 }
+test { useJUnitPlatform() }
+halo { version = '2.24' }
+

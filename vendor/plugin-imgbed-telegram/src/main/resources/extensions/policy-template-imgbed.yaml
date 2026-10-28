@@ -1,0 +1,7 @@
+﻿apiVersion: storage.halo.run/v1alpha1
+kind: PolicyTemplate
+metadata:
+  name: imgbed-telegram
+spec:
+  displayName: ImgBed Telegram
+  settingName: imgbed-telegram-policy-setting

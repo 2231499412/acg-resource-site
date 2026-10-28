@@ -1,0 +1,36 @@
+﻿apiVersion: v1alpha1
+kind: Setting
+metadata:
+  name: imgbed-telegram-policy-setting
+spec:
+  forms:
+    - group: default
+      label: ImgBed Telegram
+      formSchema:
+        - $formkit: text
+          name: endpoint
+          label: ImgBed 地址
+          value: https://904764f8.cloudflare-imgbed-6ip.pages.dev
+          validation: required|url
+          help: 填写 ImgBed 站点地址，不要在末尾添加 /upload
+        - $formkit: password
+          name: token
+          label: API Token
+          help: 在 ImgBed 管理后台的系统设置-安全中创建，建议授予 upload 和 delete 权限
+        - $formkit: password
+          name: authCode
+          label: 上传认证码（兼容旧版）
+          help: 如果后台没有 API Token 管理，可以填写系统设置中的上传认证码；删除远程文件建议仍使用 API Token
+        - $formkit: text
+          name: location
+          label: 上传目录
+          value: halo
+          help: 可选，例如 halo/images
+        - $formkit: number
+          name: maxFileSizeMb
+          label: 最大文件大小（MB）
+          value: 20
+          min: 1
+          max: 20
+          validation: required
+          help: Telegram Bot API 单文件上限约 20MB

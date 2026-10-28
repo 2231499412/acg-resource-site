@@ -1,0 +1,10 @@
+# Copy to application-mysql.yaml and set environment variables before opting in.
+spring:
+  r2dbc:
+    url: r2dbc:pool:mysql://${HALO_DB_HOST:127.0.0.1}:${HALO_DB_PORT:3306}/${HALO_DB_NAME:halo_resource}
+    username: ${HALO_DB_USER:halo_resource}
+    password: ${HALO_DB_PASSWORD}
+  sql:
+    init:
+      mode: always
+      platform: mysql
