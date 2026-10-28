@@ -41,3 +41,5 @@ halo/parts/
 scripts/__pycache__/
 vendor/*.jar
 
+deploy/runtime/
+
