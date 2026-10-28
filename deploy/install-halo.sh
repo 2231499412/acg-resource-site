@@ -62,6 +62,7 @@ chmod 600 /etc/halo/halo.env
 
 # This stages the plugin. A new Halo installation must install it once from the Console.
 cp "$REPO_ROOT/deploy/plugins/PluginImgBedTelegram-1.0.0.jar" "$DATA_ROOT/plugins/PluginImgBedTelegram-1.0.0.jar"
+cp "$REPO_ROOT/deploy/plugins/showcase-1.7.4-resource.1.jar" "$DATA_ROOT/plugins/showcase-1.7.4-resource.1.jar"
 chown -R halo:halo "$HALO_ROOT" "$DATA_ROOT"
 
 cat > /etc/systemd/system/halo.service <<EOF
