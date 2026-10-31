@@ -1,9 +1,9 @@
+import argparse
 from pathlib import Path
 import re
 
 
 ROOT = Path(__file__).resolve().parent.parent
-TEMPLATE = ROOT / "halo-data" / "themes" / "theme-earth" / "templates" / "post.html"
 STYLE = '''    <style id="mobile-article-images">
       @media (max-width: 639px) {
         #content figure[data-content-type="image"] {
@@ -28,10 +28,20 @@ STYLE = '''    <style id="mobile-article-images">
 
 
 def main():
-    if not TEMPLATE.exists():
-        raise SystemExit(f"Halo Earth post template not found: {TEMPLATE}")
+    parser = argparse.ArgumentParser(description="Apply mobile image spacing to the Halo Earth theme")
+    parser.add_argument(
+        "--halo-data-dir",
+        type=Path,
+        default=ROOT / "halo-data",
+        help="Halo data directory (defaults to halo-data under the repository)",
+    )
+    args = parser.parse_args()
+    template = args.halo_data_dir / "themes" / "theme-earth" / "templates" / "post.html"
 
-    content = TEMPLATE.read_text(encoding="utf-8")
+    if not template.exists():
+        raise SystemExit(f"Halo Earth post template not found: {template}")
+
+    content = template.read_text(encoding="utf-8")
     style_pattern = re.compile(r'    <style id="mobile-article-images">.*?    </style>', re.DOTALL)
     if style_pattern.search(content):
         updated, count = style_pattern.subn(STYLE, content, count=1)
@@ -42,8 +52,8 @@ def main():
         updated = content.replace(anchor, f"{anchor}\n{STYLE}", 1)
 
     if updated != content:
-        TEMPLATE.write_text(updated, encoding="utf-8", newline="")
-    print(f"Applied mobile article image spacing to {TEMPLATE}")
+        template.write_text(updated, encoding="utf-8", newline="")
+    print(f"Applied mobile article image spacing to {template}")
 
 
 if __name__ == "__main__":
