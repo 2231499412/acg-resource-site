@@ -1,0 +1,60 @@
+<th:block th:fragment="navigation">
+  <header class="mobile-site-header" aria-label="手机导航">
+    <button type="button" class="mobile-icon-button" data-mobile-menu-open aria-controls="mobile-site-drawer" aria-haspopup="dialog" aria-expanded="false" aria-label="打开导航菜单">
+      <span class="i-tabler-menu-2" aria-hidden="true"></span>
+    </button>
+    <a href="/" class="mobile-site-brand" th:attr="aria-label=${site.title}">
+      <img th:if="${not #strings.isEmpty(site.logo)}" th:src="${site.logo}" th:alt="${site.title}" />
+      <span th:if="${#strings.isEmpty(site.logo)}" th:text="${site.title}">兔子taozi</span>
+    </a>
+    <button th:if="${pluginFinder.available('PluginSearchWidget')}" type="button" class="mobile-icon-button" data-mobile-search aria-label="搜索文章">
+      <span class="i-tabler-search" aria-hidden="true"></span>
+    </button>
+    <span th:unless="${pluginFinder.available('PluginSearchWidget')}" aria-hidden="true"></span>
+  </header>
+
+  <dialog id="mobile-site-drawer" class="mobile-site-drawer" aria-labelledby="mobile-drawer-title">
+    <div class="mobile-drawer-heading">
+      <a href="/" id="mobile-drawer-title" th:text="${site.title}">兔子taozi</a>
+      <button type="button" class="mobile-icon-button" data-mobile-menu-close autofocus aria-label="关闭导航菜单">
+        <span class="i-tabler-x" aria-hidden="true"></span>
+      </button>
+    </div>
+    <nav aria-label="站点导航" th:with="menu = ${menuFinder.getPrimary()}">
+      <p class="mobile-nav-label">浏览 / EXPLORE</p>
+      <ul class="mobile-nav-list" th:if="${menu != null and not #lists.isEmpty(menu.menuItems)}">
+        <li th:each="item : ${menu.menuItems}">
+          <a th:if="${#lists.isEmpty(item.children)}" class="mobile-nav-link" th:href="@{${item.status.href}}" th:target="${item.spec.target?.value}" th:text="${item.status.displayName}"></a>
+          <details th:unless="${#lists.isEmpty(item.children)}" class="mobile-nav-group">
+            <summary><span th:text="${item.status.displayName}"></span><span class="mobile-nav-chevron" aria-hidden="true"></span></summary>
+            <ul class="mobile-nav-children">
+              <li><a class="mobile-nav-link" th:href="@{${item.status.href}}" th:target="${item.spec.target?.value}">查看全部</a></li>
+              <li th:each="child : ${item.children}"><a class="mobile-nav-link" th:href="@{${child.status.href}}" th:target="${child.spec.target?.value}" th:text="${child.status.displayName}"></a></li>
+            </ul>
+          </details>
+        </li>
+      </ul>
+      <a th:if="${menu == null or #lists.isEmpty(menu.menuItems)}" class="mobile-nav-link" href="/">首页</a>
+    </nav>
+    <nav aria-label="文章分类" th:with="categories = ${categoryFinder.listAsTree()}">
+      <details class="mobile-nav-group mobile-category-group" open>
+        <summary><span>文章分类</span><span class="mobile-nav-chevron" aria-hidden="true"></span></summary>
+        <ul class="mobile-nav-list">
+          <li><a class="mobile-nav-link" href="/archives">全部文章</a></li>
+          <th:block th:replace="~{modules/resource-mobile-categories :: tree(${categories})}" />
+        </ul>
+        <p class="mobile-nav-empty" th:if="${#lists.isEmpty(categories)}">暂未添加分类</p>
+      </details>
+    </nav>
+    <div class="mobile-nav-footer">
+      <a href="/tags">标签索引</a>
+      <a href="/console" sec:authorize="isAuthenticated()">管理后台</a>
+      <a href="/login" sec:authorize="isAnonymous()">登录</a>
+      <div class="mobile-scheme-controls" th:if="${theme.config.style.enable_change_color_scheme}" x-data="colorSchemeSwitcher" aria-label="显示模式">
+        <button type="button" @click="setColorScheme('light',true)" :aria-pressed="currentValue === 'light'">浅色</button>
+        <button type="button" @click="setColorScheme('dark',true)" :aria-pressed="currentValue === 'dark'">深色</button>
+        <button type="button" @click="setColorScheme('system',true)" :aria-pressed="currentValue === 'system'">跟随系统</button>
+      </div>
+    </div>
+  </dialog>
+</th:block>
