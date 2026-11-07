@@ -2,9 +2,11 @@
 
 ## 背景
 
-COS 图包文章单篇图片数量极大（最多 150 张），且 Halo 服务端渲染正文图片时会自动注入 `srcset`/`sizes` 响应式属性，但**丢失了 `loading="lazy"` 属性**，导致一篇文章的图片全部一次性加载，页面很慢。
+COS 图包文章单篇图片数量极大（最多 150 张），正文图片默认一次性全部加载，页面很慢。Halo 会给**本地 `/upload/` 图片**自动注入 `srcset`/`sizes` 响应式属性（外链图片则原样输出、不重写），但没有懒加载。
 
 另外，游戏搬运文章的部分配图下载超时后会被脚本直接丢弃，造成缺图。为此补丁同时支持**外链优先 + 本地兜底**的多源加载。
+
+> 实测补充：外链图片的 `data-sources`、`#fb=`、`loading="lazy"` 等自定义属性在前台会**完整保留**；只有本地图会被 Halo 追加 `srcset`/`sizes`。所以兜底链对搬运文章可靠，但仍需要本补丁的 JS 来真正执行「失败切下一个源」。
 
 本补丁在 Earth 主题的 `post.html` 中注入一段前端脚本，做两件事：
 
@@ -46,6 +48,21 @@ sudo systemctl restart halo
 ```
 
 > 注意：路径需按你服务器实际目录调整（`/opt/halo-data` 是文档示例，也可能是其他挂载路径）。
+
+## 重要：通过 API 修改文章正文后必须重新发布
+
+Halo 把文章内容分成「头版本」(`spec.headSnapshot`) 和「已发布版本」(`spec.releaseSnapshot`)，前台渲染的是**后者**。
+
+`PUT /apis/api.console.halo.run/v1alpha1/posts/{name}/content` 只更新头版本。如果改完不发布，用 API 读 `head-content` 看是新内容，但访客看到的仍是旧正文（响应头是 `no-store`，不是缓存问题，加随机参数也没用）。
+
+改完正文后补一次发布：
+
+```bash
+PUT /apis/api.console.halo.run/v1alpha1/posts/{name}/publish
+Body: {"publish": true}
+```
+
+发布后用文章列表接口确认 `headSnapshot == releaseSnapshot` 即生效。新建文章时 `create_post()` 已经带这一步，只有「更新已有文章」容易漏。
 
 ## 验证
 
