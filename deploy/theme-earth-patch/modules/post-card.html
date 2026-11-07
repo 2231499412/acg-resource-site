@@ -70,8 +70,8 @@
         </a>
       </div>
       <h1
-        class="line-clamp-2 cursor-pointer text-2xl font-medium transition-all hover:text-gray-500 hover:underline dark:text-slate-50 dark:hover:text-white"
-        th:classappend="|${direction == 'column' ? 'sm:line-clamp-2' : ''} ${list_layout == 'grid_2' ? 'sm:line-clamp-3' : ''} ${list_layout == 'grid_3' ? 'sm:line-clamp-4' : ''}|"
+        class="line-clamp-3 cursor-pointer break-words text-base leading-6 font-medium transition-all hover:text-gray-500 hover:underline dark:text-slate-50 dark:hover:text-white"
+        th:classappend="|${direction == 'column' ? 'sm:line-clamp-3' : ''} ${list_layout == 'grid_2' ? 'sm:line-clamp-4' : ''} ${list_layout == 'grid_3' ? 'sm:line-clamp-6' : ''}|"
       >
         <a th:href="@{${post.status.permalink}}" th:text="${post.spec.title}" th:title="${post.spec.title}"></a>
       </h1>
