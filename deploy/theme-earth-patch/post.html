@@ -459,6 +459,7 @@
         <div
           class="before:z-1 relative size-full bg-cover bg-center bg-no-repeat before:absolute before:inset-0 before:bg-black/40"
           th:style="|background-image: url('${post.spec.cover}')|"
+          th:attr="data-bg-src=${post.spec.cover}"
         ></div>
         <header
           class="pattern-header-text absolute top-1/3 mx-auto flex w-full flex-col items-center justify-center gap-3"
@@ -830,6 +831,9 @@
     >
       <span class="i-tabler-chevron-up text-2xl text-gray-600 dark:text-slate-200"></span>
     </button>
+
+    <!-- 文章页不走 hero 片段，单独引用封面/背景图兜底脚本 -->
+    <th:block th:replace="~{modules/hero :: coverFallbackScript}" />
   </body>
 </html>
 

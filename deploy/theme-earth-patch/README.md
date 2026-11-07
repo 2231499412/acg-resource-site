@@ -146,3 +146,47 @@ sudo systemctl restart halo
 - `FALLBACK_TIMEOUT = 3500`：主源超时切下一个源的毫秒数。外链优先时可适当调小（如 2000）让切换更快；调太大访客会盯着空白等
 
 > 图片源的优先顺序由搬运脚本 `acg_migrate.py` 写入正文时决定，主题脚本只按 `data-sources` 的顺序依次尝试。
+
+---
+
+## 追加补丁：封面 / 壁纸「外链优先 + 本地兜底」（方案 B）
+
+正文图片早已是外链优先，但封面走的是 `spec.cover`（本地 `/upload/`）+ Halo 服务端缩略图，
+首页壁纸则是 `theme.config.layout.header_background_image`。这一批补丁把两者也统一到同一套机制。
+
+**改动文件（4 个）**
+
+| 文件 | 作用 |
+|---|---|
+| `templates/modules/post-card.html` | 列表卡片封面：`#fb=` 时走外链、去掉 srcset（外链图床不认 `?width=`），否则保留 `thumbnail.gen` |
+| `templates/modules/featured-post-card.html` | 置顶大卡片同上 |
+| `templates/modules/hero.html` | 首页壁纸 / 内容页头图支持 `#fb=`，并定义公共兜底脚本 `coverFallbackScript` |
+| `templates/post.html` | 文章页头图挂 `data-bg-src`，并引用公共兜底脚本（文章页不走 hero 片段） |
+
+**数据格式**：和正文图一致，地址写成 `外链#fb=本地路径`（本地路径 URL 编码）。
+`#` 之后是 URL 片段，浏览器请求时不会发给服务器，不影响 CDN 缓存与防盗链。
+封面 `error` 或 3.5 秒未加载完，自动切到 `/upload/`；CSS 背景图用 `new Image()` 探测，失败同样切本地。
+
+**数据层已由脚本完成**（无需在部署时操作）：
+
+- `cover_remote_first.py`：把带外链兜底的本地封面改写成 `外链#fb=本地`；`--dry-run` 预演、`--rollback` 回滚。
+- 主题配置 `layout.header_background_image` 改为 `图床链接#fb=/upload/link.jpg`。
+
+**部署**（服务器上，不需要 Git 仓库）：
+
+```bash
+cd /tmp && curl -fsSLO https://raw.githubusercontent.com/2231499412/acg-resource-site/main/deploy/theme-earth-patch/apply-cover-patch.sh
+sudo bash apply-cover-patch.sh
+```
+
+脚本会自动定位 `theme-earth` 目录 → 下载 4 个模板 → 校验关键字 → 备份 `.bak-cover-<时间戳>` → 覆盖 → 重启 Halo。
+若路径识别不准，用 `THEME_DIR=/实际/theme-earth路径 sudo bash apply-cover-patch.sh`。
+
+**验证**：首页源代码含 `cover-fallback-loader`；列表封面 `<img>` 含 `data-cover-remote`；
+文章页头图 `div` 含 `data-bg-src`。屏蔽外链域名后，封面与壁纸应在约 3.5 秒后回退到 `/upload/`。
+
+**兼容性**：模板未部署时，`外链#fb=本地` 仍然能正常显示外链图（只是没有自动回退），
+所以数据层可以先改、模板后部署，顺序颠倒不会白屏。
+
+**回滚**：把 `.bak-cover-<时间戳>` 备份改回原名并重启 Halo；
+封面数据用 `python cover_remote_first.py --rollback` 恢复成本地路径。

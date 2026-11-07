@@ -1,0 +1,145 @@
+<section th:fragment="hero(isHome, cover, title)">
+  <div
+    th:if="${theme.config.layout.header_widget != 'none'} and ${isHome}"
+    class="bg-cover bg-center bg-no-repeat"
+    th:styleappend="${theme.config.layout.header_background_type == 'image' ? 'background-image: url(' + theme.config.layout.header_background_image + ');' : 'background: ' + theme.config.layout.header_background + ';'}"
+    th:classappend="${theme.config.layout.header_widget == 'site_title' ? 'h-96' : ''}"
+    th:attr="data-bg-src=${theme.config.layout.header_background_image}"
+  >
+    <th:block th:switch="${theme.config.layout.header_widget}">
+      <th:block th:case="latest_post" th:with="posts = ${postFinder.list(1,1)}">
+        <div class="mx-auto max-w-7xl px-4 py-6 lg:px-6" th:if="${posts.total gt 0}">
+          <th:block th:replace="~{modules/featured-post-card :: featured-post-card(post=${posts.items[0]})}" />
+        </div>
+      </th:block>
+      <th:block th:case="latest_post_grid" th:with="posts = ${postFinder.list(1,5)}">
+        <div
+          class="mx-auto grid max-w-7xl grid-cols-1 gap-3 px-4 py-6 sm:grid-cols-5 lg:px-6"
+          th:if="${posts.total gt 0}"
+        >
+          <div class="col-span-1 sm:col-span-3">
+            <th:block
+              th:replace="~{modules/post-card :: post-card(post=${posts.items[0]},cover=true,animation=false,border=false,direction='row')}"
+            />
+          </div>
+          <div class="col-span-1 grid grid-cols-1 gap-3 sm:col-span-2 sm:grid-cols-2">
+            <th:block th:each="post,postStat : ${posts.items}">
+              <th:block th:if="${postStat.index != 0}">
+                <th:block
+                  th:replace="~{modules/post-card :: post-card(post=${post},cover=false,animation=false,border=false,direction='row')}"
+                />
+              </th:block>
+            </th:block>
+          </div>
+        </div>
+      </th:block>
+      <th:block th:case="site_title">
+        <div class="mx-auto flex h-full max-w-7xl flex-col items-center justify-center gap-3 px-4 py-6 lg:px-6">
+          <span class="text-5xl" th:style="|color:${theme.config.layout.title_color}|" th:text="${site.title}"></span>
+          <span
+            class="text-sm font-light"
+            th:style="|color:${theme.config.layout.title_color}|"
+            th:text="${site.subtitle}"
+          ></span>
+        </div>
+      </th:block>
+    </th:block>
+  </div>
+  <th:block th:if="${theme.config.layout.content_header} and ${not #strings.isEmpty(cover)}">
+    <div class="relative">
+      <div
+        class="before:z-1 relative h-96 bg-cover bg-center bg-no-repeat before:absolute before:inset-0 before:bg-black/40"
+        th:style="|background-image: url('${cover}')|"
+        th:attr="data-bg-src=${cover}"
+      ></div>
+      <header
+        class="pattern-header-text absolute top-1/2 mx-auto flex w-full flex-col items-center justify-center gap-3"
+      >
+        <h1 class="text-5xl text-white" th:text="${title}"></h1>
+      </header>
+    </div>
+  </th:block>
+
+  <th:block th:replace="~{modules/hero :: coverFallbackScript}" />
+</section>
+
+<!--
+  封面 / 背景图「外链优先 + 本地兜底」公共脚本。
+  所有列表页都引用 hero 片段；文章页 post.html 也直接 replace 这个 fragment，
+  因此只需维护这一份实现。
+  约定：图片地址写成  外链#fb=本地路径  （本地路径需 URL 编码），
+        # 之后是 URL 片段，浏览器不会发给服务器，不影响 CDN 缓存与防盗链。
+-->
+<th:block th:fragment="coverFallbackScript">
+  <script id="cover-fallback-loader">
+    (function () {
+      if (window.__acgCoverFbLoaded) return;
+      window.__acgCoverFbLoaded = true;
+      var TIMEOUT = 3500;
+
+      function splitFb(s) {
+        var i = (s || '').indexOf('#fb=');
+        if (i === -1) return null;
+        var local = s.slice(i + 4);
+        try { local = decodeURIComponent(local); } catch (e) {}
+        return { remote: s.slice(0, i), local: local };
+      }
+
+      function swapImg(img) {
+        if (img.getAttribute('data-fb-done')) return;
+        img.setAttribute('data-fb-done', '1');
+        var pair = splitFb(img.getAttribute('src') || '');
+        if (!pair || !pair.local) return;
+        img.removeAttribute('srcset');
+        img.src = pair.local;
+      }
+
+      function bindImg(img) {
+        if (img.getAttribute('data-fb-bound')) return;
+        img.setAttribute('data-fb-bound', '1');
+        img.addEventListener('error', function () { swapImg(img); });
+        setTimeout(function () {
+          if (!img.getAttribute('data-fb-done') && (!img.complete || img.naturalWidth === 0)) swapImg(img);
+        }, TIMEOUT);
+      }
+
+      function bindBg(el) {
+        if (el.getAttribute('data-bg-bound')) return;
+        el.setAttribute('data-bg-bound', '1');
+        var pair = splitFb(el.getAttribute('data-bg-src') || '');
+        if (!pair || !pair.local) return;
+        // CSS 里的 #fb= 只是片段；显式设成纯外链，避免个别浏览器对含 # 的 url() 处理不一致
+        el.style.backgroundImage = "url('" + pair.remote + "')";
+        var probe = new Image();
+        var done = false;
+        function fail() {
+          if (done) return;
+          done = true;
+          el.style.backgroundImage = "url('" + pair.local + "')";
+        }
+        probe.onload = function () { if (probe.naturalWidth > 0) done = true; else fail(); };
+        probe.onerror = fail;
+        probe.src = pair.remote;
+        setTimeout(function () { if (!done) fail(); }, TIMEOUT);
+      }
+
+      function scan() {
+        var imgs = document.querySelectorAll('img[data-cover-remote]');
+        for (var i = 0; i !== imgs.length; i++) bindImg(imgs[i]);
+        var bgs = document.querySelectorAll('[data-bg-src]');
+        for (var j = 0; j !== bgs.length; j++) bindBg(bgs[j]);
+      }
+
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scan);
+      else scan();
+      if (window.MutationObserver) {
+        var pending = false;
+        new MutationObserver(function () {
+          if (pending) return;
+          pending = true;
+          setTimeout(function () { pending = false; scan(); }, 120);
+        }).observe(document.documentElement, { childList: true, subtree: true });
+      }
+    })();
+  </script>
+</th:block>
