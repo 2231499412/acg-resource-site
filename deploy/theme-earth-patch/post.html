@@ -69,71 +69,130 @@
       html.dark #content figure[data-content-type="image"] > img:not([data-loaded]) {
         background-color: #1e293b;
       }
+      #content img.img-source-exhausted {
+        color: transparent;
+        font-size: 0;
+      }
     </style>
     <script id="lazy-image-loader">
       (function () {
+        var FALLBACK_TIMEOUT = 3500; // 主源超时未加载出来就切下一个源
+        var EAGER_COUNT = 2;         // 首屏立即加载的图片数
+        var ROOT_MARGIN = "600px 0px";
+        var states = new WeakMap();  // img -> {list, idx, timer, done}
+
+        function stateOf(img) {
+          if (states.has(img)) return states.get(img);
+          var list = [];
+          var declared = img.getAttribute("data-sources");
+          if (declared) {
+            declared.split("|").forEach(function (u) {
+              u = u.trim();
+              if (u && list.indexOf(u) < 0) list.push(u);
+            });
+          }
+          // Halo 渲染正文时可能重写 img 标签并丢掉自定义属性，
+          // 所以兜底地址同时编码在 src 的 #fb= 片段里（片段不会发给服务器）
+          var raw = img.getAttribute("src") || img.getAttribute("data-src") || "";
+          var m = raw.match(/[?#&]fb=([^&#]+)/);
+          if (m) {
+            try {
+              var fb = decodeURIComponent(m[1]);
+              if (fb && list.indexOf(fb) < 0) list.push(fb);
+            } catch (e) {}
+          }
+          var clean = raw.replace(/[?#&]fb=[^&#]*$/, "");
+          if (clean && list.indexOf(clean) < 0) list.unshift(clean);
+          var st = { list: list, idx: 0, timer: null, done: false };
+          states.set(img, st);
+          return st;
+        }
+
+        function loadAt(img, i) {
+          var st = stateOf(img);
+          if (st.done) return;
+          if (i >= st.list.length) {
+            st.done = true;
+            img.classList.add("img-source-exhausted");
+            return;
+          }
+          st.idx = i;
+          if (st.timer) { clearTimeout(st.timer); st.timer = null; }
+          st.timer = setTimeout(function () {
+            if (img.complete && img.naturalWidth > 0) return;
+            loadAt(img, st.idx + 1);
+          }, FALLBACK_TIMEOUT);
+          // 切源时必须清掉 srcset，否则浏览器仍按旧的响应式候选取图
+          if (i > 0 || st.list.length > 1) {
+            img.removeAttribute("srcset");
+            img.removeAttribute("sizes");
+          }
+          img.setAttribute("src", st.list[i]);
+        }
+
         function init() {
           var root = document.getElementById("content");
           if (!root) return;
           var imgs = root.querySelectorAll("img");
           if (!imgs.length) return;
-          // 不支持 IntersectionObserver 的旧浏览器直接跳过（不拦截加载）
-          if (!("IntersectionObserver" in window)) return;
 
-          var eagerCount = 2; // 首屏立即加载的图片数量
+          // img 的 load / error 都不冒泡，必须在捕获阶段监听
+          root.addEventListener("load", function (e) {
+            var img = e.target;
+            if (!img || img.tagName !== "IMG" || !states.has(img)) return;
+            var st = states.get(img);
+            if (st.timer) { clearTimeout(st.timer); st.timer = null; }
+            st.done = true;
+            img.dataset.loaded = "1";
+          }, true);
+
+          root.addEventListener("error", function (e) {
+            var img = e.target;
+            if (!img || img.tagName !== "IMG" || !states.has(img)) return;
+            var st = states.get(img);
+            if (st.done) return;
+            loadAt(img, st.idx + 1);
+          }, true);
+
+          var supported = ("IntersectionObserver" in window);
           var pending = [];
 
           imgs.forEach(function (img, i) {
-            // 已有 data-src 或已处理过则跳过
-            if (img.hasAttribute("data-src") || img.dataset.loaded) return;
+            if (img.dataset.loaderReady) return;
+            img.dataset.loaderReady = "1";
+            img.setAttribute("referrerpolicy", "no-referrer");
+            var st = stateOf(img); // 必须在移除 src 之前解析候选列表
+            if (!st.list.length) return;
+
+            if (!supported || i < EAGER_COUNT) {
+              loadAt(img, 0);
+              return;
+            }
             var src = img.getAttribute("src");
             var srcset = img.getAttribute("srcset");
             if (!src && !srcset) return;
-            if (i < eagerCount) {
-              // 首屏直接保留，标记已加载
-              img.dataset.loaded = "1";
-              return;
-            }
-            // 保存真实地址，清空 src/srcset 阻止立即加载
-            if (src) {
-              img.setAttribute("data-src", src);
-              img.removeAttribute("src");
-            }
-            if (srcset) {
-              img.setAttribute("data-srcset", srcset);
-              img.removeAttribute("srcset");
-            }
-            img.dataset.loaded = "0";
+            if (src) { img.setAttribute("data-src", src); img.removeAttribute("src"); }
+            if (srcset) { img.setAttribute("data-srcset", srcset); img.removeAttribute("srcset"); }
             pending.push(img);
           });
 
-          if (!pending.length) return;
+          if (!pending.length || !supported) return;
 
-          var observer = new IntersectionObserver(
-            function (entries) {
-              entries.forEach(function (entry) {
-                if (!entry.isIntersecting) return;
-                var img = entry.target;
-                var ds = img.getAttribute("data-src");
-                var ds2 = img.getAttribute("data-srcset");
-                if (ds) {
-                  img.setAttribute("src", ds);
-                  img.removeAttribute("data-src");
-                }
-                if (ds2) {
-                  img.setAttribute("srcset", ds2);
-                  img.removeAttribute("data-srcset");
-                }
-                img.dataset.loaded = "1";
-                observer.unobserve(img);
-              });
-            },
-            { rootMargin: "600px 0px" }
-          );
+          var observer = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+              if (!entry.isIntersecting) return;
+              var img = entry.target;
+              var ds2 = img.getAttribute("data-srcset");
+              img.removeAttribute("data-src");
+              img.removeAttribute("data-srcset");
+              loadAt(img, 0);
+              // 单源图片（普通图包图）保留 Halo 的响应式 srcset
+              if (ds2 && stateOf(img).list.length === 1) img.setAttribute("srcset", ds2);
+              observer.unobserve(img);
+            });
+          }, { rootMargin: ROOT_MARGIN });
 
-          pending.forEach(function (img) {
-            observer.observe(img);
-          });
+          pending.forEach(function (img) { observer.observe(img); });
         }
 
         if (document.readyState === "loading") {

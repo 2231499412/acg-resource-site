@@ -41,7 +41,7 @@ sudo systemctl restart halo
 
 ### Earth 主题补丁（单文件精确覆盖）
 
-图片懒加载等小改动放在 `deploy/theme-earth-patch/`，只覆盖单个模板文件，不走整体 ZIP 重装：
+图片懒加载、多源兜底等小改动放在 `deploy/theme-earth-patch/`，只覆盖单个模板文件，不走整体 ZIP 重装：
 
 ```bash
 cd /opt/acg-resource-site/repo
