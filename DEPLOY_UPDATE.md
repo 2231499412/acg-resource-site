@@ -41,20 +41,25 @@ sudo systemctl restart halo
 
 ### Earth 主题补丁（单文件精确覆盖）
 
-图片懒加载、多源兜底等小改动放在 `deploy/theme-earth-patch/`，只覆盖单个模板文件，不走整体 ZIP 重装：
+图片懒加载、多源兜底等小改动放在 `deploy/theme-earth-patch/`，只覆盖单个模板文件，不走整体 ZIP 重装。
+
+> 本文件上方「服务器目录建议」里的 `/opt/acg-resource-site/repo`、`/opt/halo-data` 是**建议值**，
+> 不是服务器现状。如果服务器上没有该仓库目录，不需要先 clone：补丁是自包含单文件，
+> 可直接从 GitHub raw / jsDelivr 下载后覆盖，脚本会自动定位真实的主题模板路径。
+> 完整命令见 `deploy/theme-earth-patch/README.md` 的「通用部署」。
+
+已存在仓库时也可手动覆盖（路径按实际调整）：
 
 ```bash
-cd /opt/acg-resource-site/repo
+cd <服务器上仓库路径>
 git pull --ff-only
 
-sudo cp /opt/halo-data/themes/theme-earth/templates/post.html \
-        /opt/halo-data/themes/theme-earth/templates/post.html.bak
+sudo cp <Halo 数据目录>/themes/theme-earth/templates/post.html \
+        <Halo 数据目录>/themes/theme-earth/templates/post.html.bak
 sudo cp deploy/theme-earth-patch/post.html \
-        /opt/halo-data/themes/theme-earth/templates/post.html
+        <Halo 数据目录>/themes/theme-earth/templates/post.html
 sudo systemctl restart halo
 ```
-
-详见 `deploy/theme-earth-patch/README.md`。
 
 ## 首次推送
 

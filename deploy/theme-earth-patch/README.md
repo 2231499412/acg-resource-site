@@ -28,26 +28,79 @@ COS 图包文章单篇图片数量极大（最多 150 张），正文图片默�
 
 ## 部署步骤
 
-在服务器上执行：
+> **路径说明**：`deploy/theme-earth-patch/post.html` 是单个自包含文件，不依赖仓库里其它内容。
+> 下面旧流程里的 `/opt/acg-resource-site/repo`、`/opt/halo-data` **都只是文档示例路径**；
+> 如果服务器上从没 clone 过仓库（`cd` 报 `No such file or directory`），或 Halo 装在别处
+> （systemd / Docker / 自定义 work-dir），请用「通用部署」，不需要先建仓库。
+
+### 通用部署（推荐，不要求服务器上存在 Git 仓库）
+
+在服务器上一次执行，会自动定位主题模板、下载补丁、备份、覆盖、重启：
 
 ```bash
-# 1. 拉取最新代码（拿到补丁文件）
-cd /opt/acg-resource-site/repo
-git pull --ff-only
+set -e
 
-# 2. 备份服务器当前主题模板
-sudo cp /opt/halo-data/themes/theme-earth/templates/post.html \
-        /opt/halo-data/themes/theme-earth/templates/post.html.bak-lazyload
+# 1. 定位主题模板
+POST=$(sudo find /opt /home /root /var/lib /srv /data /www \
+        -type f -path '*/theme-earth/templates/post.html' 2>/dev/null | head -1)
+if [ -z "$POST" ]; then
+  echo "未找到 post.html，请把下面诊断输出发给维护者："
+  sudo docker ps --format '{{.Names}} {{.Image}} {{.Mounts}}' 2>/dev/null || true
+  systemctl list-units --type=service --no-pager | grep -i halo || true
+  ls -la /opt /home/ubuntu
+  exit 1
+fi
+echo "主题模板: $POST"
 
-# 3. 用补丁覆盖
-sudo cp deploy/theme-earth-patch/post.html \
-        /opt/halo-data/themes/theme-earth/templates/post.html
+# 2. 下载补丁（GitHub raw 不通时自动切 jsDelivr）
+curl -fsSL --retry 2 --max-time 30 -o /tmp/post.patch.html \
+  https://raw.githubusercontent.com/2231499412/acg-resource-site/main/deploy/theme-earth-patch/post.html \
+|| curl -fsSL --retry 2 --max-time 30 -o /tmp/post.patch.html \
+  https://cdn.jsdelivr.net/gh/2231499412/acg-resource-site@main/deploy/theme-earth-patch/post.html
+grep -q 'lazy-image-loader' /tmp/post.patch.html || { echo "下载内容校验失败，已中止"; exit 1; }
 
-# 4. 重启 Halo（使主题模板重新加载）
-sudo systemctl restart halo
+# 3. 备份并覆盖
+sudo cp "$POST" "$POST.bak-lazyload"
+sudo cp /tmp/post.patch.html "$POST"
+sudo chmod 644 "$POST"
+
+# 4. 重启 Halo（systemd 或 Docker 二选一）
+if systemctl list-unit-files --no-pager 2>/dev/null | grep -q '^halo.service'; then
+  sudo systemctl restart halo
+elif sudo docker ps --format '{{.Names}}' 2>/dev/null | grep -qi halo; then
+  sudo docker restart "$(sudo docker ps --format '{{.Names}}' | grep -i halo | head -1)"
+else
+  echo "未识别到 Halo 服务，请手动重启"
+fi
+echo "部署完成"
 ```
 
-> 注意：路径需按你服务器实际目录调整（`/opt/halo-data` 是文档示例，也可能是其他挂载路径）。
+如果服务器连不上 GitHub / jsDelivr，改从本地上传这一个文件（在本机 Git Bash 执行）：
+
+```bash
+scp "F:/acg-resource-site/deploy/theme-earth-patch/post.html" ubuntu@<服务器IP>:/tmp/post.patch.html
+```
+
+然后服务器上**跳过第 2 步的下载**，只保留校验（文件已由 scp 放在 `/tmp/post.patch.html`）：
+
+```bash
+grep -q 'lazy-image-loader' /tmp/post.patch.html || { echo "文件内容校验失败，已中止"; exit 1; }
+```
+
+其余步骤不变。
+
+### 传统流程（服务器上确实 clone 过仓库时）
+
+```bash
+cd <服务器上仓库的实际路径>
+git pull --ff-only
+
+sudo cp <Halo 数据目录>/themes/theme-earth/templates/post.html \
+        <Halo 数据目录>/themes/theme-earth/templates/post.html.bak-lazyload
+sudo cp deploy/theme-earth-patch/post.html \
+        <Halo 数据目录>/themes/theme-earth/templates/post.html
+sudo systemctl restart halo
+```
 
 ## 重要：通过 API 修改文章正文后必须重新发布
 
